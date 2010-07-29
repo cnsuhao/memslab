@@ -2,6 +2,8 @@
  *
  * imembase.h - basic interface of memory operation
  *
+ * Copyright (c) 2007 skywind
+ *
  * - application layer slab allocator implementation
  * - unit interval time cost: almost speed up 500% - 1200% vs malloc
  * - optional page supplier: with the "GFP-Tree" algorithm
