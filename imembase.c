@@ -2,7 +2,7 @@
  *
  * imembase.c - basic interface of memory operation
  *
- * Copyright (c) 2007 skywind
+ * Copyright (c) 2007 skywind <skywind3000@hotmail.com>
  *
  * - application layer slab allocator implementation
  * - unit interval time cost: almost speed up 500% - 1200% vs malloc
