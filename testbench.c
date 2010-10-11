@@ -50,7 +50,7 @@
 #include <time.h>
 
 /* gettime */
-unsigned long gettime()
+iulong gettime()
 {
 	#if (defined(_WIN32) || defined(WIN32))
 	return timeGetTime();
@@ -63,9 +63,9 @@ unsigned long gettime()
 }
 
 /* random */
-#define RANDOM(n) (xrand() % (unsigned long)(n))
-unsigned long xseed = 0x1234567;
-unsigned long xrand(void)
+#define RANDOM(n) (xrand() % (iulong)(n))
+iulong xseed = 0x1234567;
+iulong xrand(void)
 {
 	return (((xseed = xseed * 214013L + 2531011L) >> 16) & 0x7fffffff);
 }
@@ -73,15 +73,15 @@ unsigned long xrand(void)
 /* two alloc methods dependent on the variable of kmem_turnon */
 int kmem_turnon = 0;
 
-void *xmalloc(unsigned long size)
+void *xmalloc(iulong size)
 {
-	unsigned long pos, end;
-	long *ptr;
-	if (kmem_turnon) ptr = (long*)ikmem_malloc(size);
-	else ptr = (long*)malloc(size);
-	end = size / sizeof(long);
+	iulong pos, end;
+	ilong *ptr;
+	if (kmem_turnon) ptr = (ilong*)ikmem_malloc(size);
+	else ptr = (ilong*)malloc(size);
+	end = size / sizeof(ilong);
 	for (pos = 0; pos < end ; pos += 1024)
-		ptr[pos] = (long)pos;
+		ptr[pos] = (ilong)pos;
 	return ptr;
 }
 
@@ -93,12 +93,12 @@ void xfree(void *ptr)
 
 
 /* benchmark alloc / free */
-long memory_case(long limit, long hiwater, long times, int rate, long seed)
+ilong memory_case(ilong limit, ilong hiwater, ilong times, int rate, ilong seed)
 {
-	struct case_t { long size, m1, m2; char *ptr; };
+	struct case_t { ilong size, m1, m2; char *ptr; };
 	struct case_t *record, *p;
-	unsigned long startup = 0, water = 0, maxmem = 0, sizev = 0;
-	long pagesize, page_in, page_out, page_inuse;
+	iulong startup = 0, water = 0, maxmem = 0, sizev = 0;
+	ilong pagesize, page_in, page_out, page_inuse;
 	double waste;
 	char *ptr;
 	int count = 0, maxium = 0;
@@ -113,7 +113,7 @@ long memory_case(long limit, long hiwater, long times, int rate, long seed)
 		mode = 0;
 		if (RANDOM(100) < rate) {
 			size = RANDOM(limit);
-			if (size < sizeof(long) * 2) size = sizeof(long) * 2;
+			if (size < sizeof(ilong) * 2) size = sizeof(ilong) * 2;
 			if (water + size >= hiwater) mode = 1;
 		}	else {
 			mode = 1;
@@ -139,8 +139,8 @@ long memory_case(long limit, long hiwater, long times, int rate, long seed)
 			p->m2 = rand() & 0x7ffffff;
 			water += size;
 			/* writing magic data */
-			*(long*)ptr = p->m1;
-			*(long*)(ptr + p->size - sizeof(long)) = p->m2;
+			*(ilong*)ptr = p->m1;
+			*(ilong*)(ptr + p->size - sizeof(ilong)) = p->m2;
 		}	
 		/* TO FREE old memory block */
 		else if (count > 0) {
@@ -150,11 +150,11 @@ long memory_case(long limit, long hiwater, long times, int rate, long seed)
 			record[pos] = record[--count];
 			ptr = p->ptr;
 			/* checking magic data */
-			if (*(long*)ptr != p->m1) {
+			if (*(ilong*)ptr != p->m1) {
 				printf("[BAD] bad magic1: %lxh size=%d times=%d\n", ptr, p->size, times);
 				return -1;
 			}
-			if (*(long*)(ptr + p->size - sizeof(long)) != p->m2) {
+			if (*(ilong*)(ptr + p->size - sizeof(ilong)) != p->m2) {
 				printf("[BAD] bad magic2: %lxh size=%d times=%d\n", ptr, p->size, times);
 				return -1;
 			}
@@ -174,11 +174,11 @@ long memory_case(long limit, long hiwater, long times, int rate, long seed)
 	for (pos = 0; pos < count; pos++) {
 		p = &record[pos];
 		ptr = p->ptr;
-		if (*(long*)ptr != p->m1) {
+		if (*(ilong*)ptr != p->m1) {
 			printf("[BAD] bad magic: %lxh\n", ptr);
 			return -1;
 		}
-		if (*(long*)(ptr + p->size - sizeof(long)) != p->m2) {
+		if (*(ilong*)(ptr + p->size - sizeof(ilong)) != p->m2) {
 			printf("[BAD] bad magic: %lxh\n", ptr);
 			return -1;
 		}
@@ -200,7 +200,7 @@ long memory_case(long limit, long hiwater, long times, int rate, long seed)
 			page_in, page_out, page_inuse, waste);
 	}
 	printf("\n");
-	return (long)startup;
+	return (ilong)startup;
 }
 
 int main(void)
