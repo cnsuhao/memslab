@@ -2,8 +2,6 @@
  *
  * imembase.c - basic interface of memory operation
  *
- * Copyright (c) 2007 skywind <skywind3000@hotmail.com>
- *
  * - application layer slab allocator implementation
  * - unit interval time cost: almost speed up 500% - 1200% vs malloc
  * - optional page supplier: with the "GFP-Tree" algorithm
@@ -42,11 +40,11 @@
 /*====================================================================*/
 /* IALLOCATOR                                                         */
 /*====================================================================*/
-void *(*__ihook_malloc)(unsigned long size) = NULL;
+void *(*__ihook_malloc)(iulong size) = NULL;
 void (*__ihook_free)(void *) = NULL;
 
 
-void* internal_malloc(struct IALLOCATOR *allocator, unsigned long size)
+void* internal_malloc(struct IALLOCATOR *allocator, iulong size)
 {
 	if (allocator != NULL) {
 		return allocator->alloc(allocator, size);
@@ -95,11 +93,11 @@ void iv_destroy(struct IVECTOR *v)
 	v->block = 0;
 }
 
-int iv_resize(struct IVECTOR *v, unsigned long newsize)
+int iv_resize(struct IVECTOR *v, iulong newsize)
 {
 	unsigned char*lptr;
-	unsigned long block, min;
-	unsigned long nblock;
+	iulong block, min;
+	iulong nblock;
 
 	if (v == NULL) return -1;
 	if (newsize > v->size && newsize <= v->block) { 
@@ -140,10 +138,10 @@ int iv_resize(struct IVECTOR *v, unsigned long newsize)
 /*====================================================================*/
 /* IMEMNODE                                                           */
 /*====================================================================*/
-void imnode_init(struct IMEMNODE *mn, long nodesize, struct IALLOCATOR *ac)
+void imnode_init(struct IMEMNODE *mn, ilong nodesize, struct IALLOCATOR *ac)
 {
 	struct IMEMNODE *mnode = mn;
-	unsigned long newsize, shift;
+	iulong newsize, shift;
 
 	assert(mnode != NULL);
 	mnode->allocator = ac;
@@ -155,13 +153,13 @@ void imnode_init(struct IMEMNODE *mn, long nodesize, struct IALLOCATOR *ac)
 	iv_init(&mnode->vmem, ac);
 	iv_init(&mnode->vmode, ac);
 
-	for (shift = 1; (1ul << shift) < (unsigned long)nodesize; ) shift++;
+	for (shift = 1; (1ul << shift) < (iulong)nodesize; ) shift++;
 
 	newsize = (nodesize < IMROUNDSIZE)? IMROUNDSIZE : nodesize;
 	newsize = IMROUNDUP(newsize);
 
 	mnode->node_size = newsize;
-	mnode->node_shift = (long)shift;
+	mnode->node_shift = (ilong)shift;
 	mnode->node_free = 0;
 	mnode->node_max = 0;
 	mnode->mem_max = 0;
@@ -175,7 +173,7 @@ void imnode_init(struct IMEMNODE *mn, long nodesize, struct IALLOCATOR *ac)
 
 void imnode_destroy(struct IMEMNODE *mnode)
 {
-    long i;
+    ilong i;
 
 	assert(mnode != NULL);
 	if (mnode->mem_count > 0) {
@@ -210,12 +208,12 @@ void imnode_destroy(struct IMEMNODE *mnode)
 	mnode->total_mem = 0;
 }
 
-static int imnode_node_resize(struct IMEMNODE *mnode, long size)
+static int imnode_node_resize(struct IMEMNODE *mnode, ilong size)
 {
-	unsigned long size1, size2;
+	iulong size1, size2;
 
-	size1 = (unsigned long)(size * (long)sizeof(long));
-	size2 = (unsigned long)(size * (long)sizeof(void*));
+	size1 = (iulong)(size * (ilong)sizeof(ilong));
+	size2 = (iulong)(size * (ilong)sizeof(void*));
 
 	if (iv_resize(&mnode->vprev, size1)) return -1;
 	if (iv_resize(&mnode->vnext, size1)) return -2;
@@ -223,19 +221,19 @@ static int imnode_node_resize(struct IMEMNODE *mnode, long size)
 	if (iv_resize(&mnode->vdata, size2)) return -5;
 	if (iv_resize(&mnode->vmode, size1)) return -6;
 
-	mnode->mprev = (long*)((void*)mnode->vprev.data);
-	mnode->mnext = (long*)((void*)mnode->vnext.data);
-	mnode->mnode = (long*)((void*)mnode->vnode.data);
+	mnode->mprev = (ilong*)((void*)mnode->vprev.data);
+	mnode->mnext = (ilong*)((void*)mnode->vnext.data);
+	mnode->mnode = (ilong*)((void*)mnode->vnode.data);
 	mnode->mdata =(void**)((void*)mnode->vdata.data);
-	mnode->mmode = (long*)((void*)mnode->vmode.data);
+	mnode->mmode = (ilong*)((void*)mnode->vmode.data);
 	mnode->node_max = size;
 
 	return 0;
 }
 
-static int imnode_mem_add(struct IMEMNODE *mnode, long node_count, void **mem)
+static int imnode_mem_add(struct IMEMNODE*mnode, ilong node_count, void**mem)
 {
-	unsigned long newsize;
+	iulong newsize;
 	char *mptr;
 
 	if (mnode->mem_count >= mnode->mem_max) {
@@ -251,7 +249,7 @@ static int imnode_mem_add(struct IMEMNODE *mnode, long node_count, void **mem)
 
 	mnode->mmem[mnode->mem_count++] = mptr;
 	mnode->total_mem += newsize;
-	mptr = (char*)IMROUNDUP(((unsigned long)mptr));
+	mptr = (char*)IMROUNDUP(((iulong)mptr));
 
 	if (mem) *mem = mptr;
 
@@ -261,9 +259,9 @@ static int imnode_mem_add(struct IMEMNODE *mnode, long node_count, void **mem)
 
 static long imnode_grow(struct IMEMNODE *mnode)
 {
-	long size_start = mnode->node_max;
-	long size_endup;
-	long retval, count, i, j;
+	ilong size_start = mnode->node_max;
+	ilong size_endup;
+	ilong retval, count, i, j;
 	void *mptr;
 	char *p;
 
@@ -301,9 +299,9 @@ static long imnode_grow(struct IMEMNODE *mnode)
 }
 
 
-long imnode_new(struct IMEMNODE *mnode)
+ilong imnode_new(struct IMEMNODE *mnode)
 {
-	long node, next;
+	ilong node, next;
 
 	assert(mnode);
 	if (mnode->list_open < 0) {
@@ -329,9 +327,9 @@ long imnode_new(struct IMEMNODE *mnode)
 	return node;
 }
 
-void imnode_del(struct IMEMNODE *mnode, long index)
+void imnode_del(struct IMEMNODE *mnode, ilong index)
 {
-	long prev, next;
+	ilong prev, next;
 
 	assert(mnode);
 	assert((index >= 0) && (index < mnode->node_max));
@@ -354,17 +352,22 @@ void imnode_del(struct IMEMNODE *mnode, long index)
 	mnode->node_free++;
 }
 
-long imnode_head(struct IMEMNODE *mnode)
+ilong imnode_head(struct IMEMNODE *mnode)
 {
 	return (mnode)? mnode->list_close : -1;
 }
 
-long imnode_next(struct IMEMNODE *mnode, long index)
+ilong imnode_next(struct IMEMNODE *mnode, ilong index)
 {
 	return (mnode)? IMNODE_NEXT(mnode, index) : -1;
 }
 
-void*imnode_data(struct IMEMNODE *mnode, long index)
+ilong imnode_prev(struct IMEMNODE *mnode, ilong index)
+{
+	return (mnode)? IMNODE_PREV(mnode, index) : -1;
+}
+
+void *imnode_data(struct IMEMNODE *mnode, ilong index)
 {
 	return (char*)IMNODE_DATA(mnode, index);
 }
@@ -377,16 +380,16 @@ void*imnode_data(struct IMEMNODE *mnode, long index)
 #define IMEM_NEXT_PTR(p)  (((void**)(p))[0])
 
 /* init slab structure with given memory block and coloroff */
-static long imslab_init(imemslab_t *slab, void *membase, 
-	unsigned long memsize, long obj_size, unsigned long coloroff)
+static ilong imslab_init(imemslab_t *slab, void *membase, 
+	iulong memsize, ilong obj_size, iulong coloroff)
 {
 	char *start = ((char*)membase) + coloroff;
 	char *endup = ((char*)membase) + memsize - obj_size;
-	long retval = 0;
+	ilong retval = 0;
 	char *tail;
 
 	assert(slab && membase);
-	assert((unsigned long)obj_size >= sizeof(void*));
+	assert((iulong)obj_size >= sizeof(void*));
 
 	iqueue_init(&slab->queue);
 	slab->membase = membase;
@@ -484,15 +487,15 @@ void imutex_unlock(imutex_t *mutex)
 static struct IMEMNODE imem_page_cache;
 static imemgfp_t imem_gfp_default;
 static imutex_t imem_gfp_lock;
-static unsigned long imem_page_size;
-static unsigned long imem_page_shift;
+static iulong imem_page_size;
+static iulong imem_page_shift;
 static int imem_gfp_malloc = 0;
 static int imem_gfp_inited = 0;
 
 
 static void* imem_gfp_alloc(imemgfp_t *gfp)
 {
-	long index;
+	ilong index;
 	char *lptr;
 
 	if (gfp != NULL && gfp != &imem_gfp_default) 
@@ -518,8 +521,8 @@ static void* imem_gfp_alloc(imemgfp_t *gfp)
 		lptr = (char*)IMNODE_DATA(&imem_page_cache, index);
 		imutex_unlock(&imem_gfp_lock);
 
-		*(long*)lptr = index;
-		lptr += IMROUNDUP(sizeof(long));
+		*(ilong*)lptr = index;
+		lptr += IMROUNDUP(sizeof(ilong));
 	}
 
 	imem_gfp_default.pages_new++;
@@ -530,7 +533,7 @@ static void* imem_gfp_alloc(imemgfp_t *gfp)
 
 static void imem_gfp_free(imemgfp_t *gfp, void *ptr)
 {
-	long index;
+	ilong index;
 	char *lptr;
 	int invalidptr;
 	
@@ -543,8 +546,8 @@ static void imem_gfp_free(imemgfp_t *gfp, void *ptr)
 		internal_free(0, ptr);
 
 	}	else {
-		lptr = (char*)ptr - IMROUNDUP(sizeof(long));
-		index = *(long*)lptr;
+		lptr = (char*)ptr - IMROUNDUP(sizeof(ilong));
+		index = *(ilong*)lptr;
 
 		invalidptr = (index < 0 || index >= imem_page_cache.node_max);
 		assert( !invalidptr );
@@ -573,7 +576,7 @@ static void imem_gfp_free(imemgfp_t *gfp, void *ptr)
 
 static void imem_gfp_init(int page_shift, int use_malloc)
 {
-	unsigned long require_size;
+	iulong require_size;
 
 	if (imem_gfp_inited != 0) 
 		return;
@@ -581,7 +584,7 @@ static void imem_gfp_init(int page_shift, int use_malloc)
 	if (page_shift <= 0) 
 		page_shift = IDEFAULT_PAGE_SHIFT;
 
-	imem_page_shift = (unsigned long)page_shift;
+	imem_page_shift = (iulong)page_shift;
 	imem_page_size = (1ul << page_shift) + IMROUNDUP(sizeof(void*)) * 16;
 
 	require_size = imem_page_size + IMROUNDUP(sizeof(void*));
@@ -629,7 +632,7 @@ static int imslab_inited = 0;
 
 static void imslab_set_init(void)
 {
-	unsigned long size;
+	iulong size;
 	if (imslab_inited != 0) 
 		return;
 	imutex_init(&imslab_lock);
@@ -653,7 +656,7 @@ static void imslab_set_destroy(void)
 
 static imemslab_t *imslab_set_new(void)
 {
-	long index;
+	ilong index;
 	char *lptr;
 
 	assert(imslab_inited != 0);
@@ -670,8 +673,8 @@ static imemslab_t *imslab_set_new(void)
 	lptr = (char*)IMNODE_DATA(&imslab_cache, index);
 	imutex_unlock(&imslab_lock);
 
-	*(long*)lptr = index;
-	lptr += IMROUNDUP(sizeof(long));
+	*(ilong*)lptr = index;
+	lptr += IMROUNDUP(sizeof(ilong));
 
 	return (imemslab_t*)lptr;
 }
@@ -679,11 +682,11 @@ static imemslab_t *imslab_set_new(void)
 static void imslab_set_delete(imemslab_t *slab)
 {
 	char *lptr = (char*)slab;
-	long index;
+	ilong index;
 	int invalidptr;
 
-	lptr -= IMROUNDUP(sizeof(long));
-	index = *(long*)lptr;
+	lptr -= IMROUNDUP(sizeof(ilong));
+	index = *(ilong*)lptr;
 
 	invalidptr = (index < 0 || index >= imem_page_cache.node_max);
 	assert( !invalidptr );
@@ -725,10 +728,10 @@ static void imslab_set_delete(imemslab_t *slab)
 
 static void imemcache_calculate(imemcache_t *cache)
 {
-	unsigned long obj_num;
-	unsigned long unit_size;
-	unsigned long size;
-	unsigned long color;
+	iulong obj_num;
+	iulong unit_size;
+	iulong size;
+	iulong color;
 	int mustonslab = 0;
 
 	unit_size = cache->unit_size;
@@ -766,9 +769,9 @@ static void imemcache_calculate(imemcache_t *cache)
 }
 
 static void imemcache_init_list(imemcache_t *cache, imemgfp_t *gfp,
-	unsigned long obj_size)
+	iulong obj_size)
 {
-	unsigned long limit;
+	iulong limit;
 	int i;
 
 	assert(imslab_inited && imem_gfp_inited && cache);
@@ -818,12 +821,12 @@ static void imemcache_init_list(imemcache_t *cache, imemgfp_t *gfp,
 	cache->pages_inuse = 0;
 }
 
-static imemslab_t *imemcache_slab_create(imemcache_t *cache, long *num)
+static imemslab_t *imemcache_slab_create(imemcache_t *cache, ilong *num)
 {
 	imemslab_t *slab;
-	unsigned long coloroff;
-	unsigned long obj_size;
-	long count;
+	iulong coloroff;
+	iulong obj_size;
+	ilong count;
 	char *page;
 
 	obj_size = cache->unit_size;
@@ -841,13 +844,13 @@ static imemslab_t *imemcache_slab_create(imemcache_t *cache, long *num)
 			return NULL;
 		}
 	}	else {
-		coloroff = IMROUNDUP((unsigned long)(page + coloroff));
-		coloroff -= (unsigned long)page;
+		coloroff = IMROUNDUP((iulong)(page + coloroff));
+		coloroff -= (iulong)page;
 		slab = (imemslab_t*)(page + coloroff);
 		coloroff += sizeof(imemslab_t);
 	}
 
-	assert(IMROUNDUP((unsigned long)slab) == (unsigned long)slab);
+	assert(IMROUNDUP((iulong)slab) == (iulong)slab);
 
 	count = imslab_init(slab, page, cache->page_size, obj_size, coloroff);
 
@@ -875,11 +878,11 @@ static void imemcache_slab_delete(imemcache_t *cache, imemslab_t *slab)
 	}
 }
 
-static long imemcache_drain_list(imemcache_t *cache, int id, long tofree)
+static ilong imemcache_drain_list(imemcache_t *cache, int id, ilong tofree)
 {
 	imemslab_t *slab;
 	iqueue_head *head, *p;
-	long free_count = 0;
+	ilong free_count = 0;
 
 	if (id == 0) head = &cache->slabs_free;
 	else if (id == 1) head = &cache->slabs_full;
@@ -937,7 +940,7 @@ static void* imemcache_list_alloc(imemcache_t *cache)
 {
 	imemslab_t *slab;
 	iqueue_head *p;
-	long slab_obj_num;
+	ilong slab_obj_num;
 	char *lptr = NULL;
 
 	if (IMCACHE_NOLOCK(cache) == 0)
@@ -991,7 +994,7 @@ static void imemcache_list_free(imemcache_t *cache, void *ptr)
 	char *lptr = (char*)ptr;
 	char *membase;
 	int invalidptr;
-	long tofree;
+	ilong tofree;
 
 	lptr -= sizeof(imemslab_t*);
 	slab = *(imemslab_t**)lptr;
@@ -1097,7 +1100,7 @@ static void *imemcache_alloc(imemcache_t *cache)
 
 	assert(ptr);
 	head = (void**)((char*)ptr - sizeof(void*));
-	head[0] = (void*)((unsigned long)head[0] | IMCACHE_CHECK_MAGIC);
+	head[0] = (void*)((iulong)head[0] | IMCACHE_CHECK_MAGIC);
 
 	return ptr;
 }
@@ -1106,7 +1109,7 @@ static void *imemcache_free(imemcache_t *cache, void *ptr)
 {
 	imemslab_t *slab;
 	imemlru_t *array;
-	unsigned long linear;
+	iulong linear;
 	char *lptr = (char*)ptr;
 	void **head;
 	int array_index = 0;
@@ -1116,7 +1119,7 @@ static void *imemcache_free(imemcache_t *cache, void *ptr)
 	array_index &= (IMCACHE_LRU_COUNT - 1);
 	
 	head = (void**)(lptr - sizeof(void*));
-	linear = (unsigned long)head[0];
+	linear = (iulong)head[0];
 	invalidptr = ((linear & IMCACHE_CHECK_MAGIC) != IMCACHE_CHECK_MAGIC);
 	head[0] = (void*)(linear & ~(IMROUNDSIZE - 1));
 
@@ -1201,10 +1204,10 @@ static void imemcache_gfp_free(struct IMEMGFP *gfp, void *ptr)
 }
 
 static imemcache_t *imemcache_create(const char *name, 
-		unsigned long obj_size, struct IMEMGFP *gfp)
+		iulong obj_size, struct IMEMGFP *gfp)
 {
 	imemcache_t *cache;
-	unsigned long page_size;
+	iulong page_size;
 
 	assert(imslab_inited && imem_gfp_inited);
 	assert(obj_size >= sizeof(void*));
@@ -1242,7 +1245,7 @@ static void imemcache_release(imemcache_t *cache)
 {
 	imemlru_t *array;
 	void *entry[IMCACHE_ARRAYLIMIT];
-	long n, i, j;
+	ilong n, i, j;
 
 	for (i = 0; i < IMCACHE_LRU_COUNT; i++) {
 		array = &cache->array[i];
@@ -1284,24 +1287,24 @@ static int ikmem_inited = 0;
 static imemcache_t *ikmem_size_lookup1[257];
 static imemcache_t *ikmem_size_lookup2[257];
 
-static unsigned long ikmem_inuse = 0;
+static iulong ikmem_inuse = 0;
 static iqueue_head ikmem_head;
 static iqueue_head ikmem_large_ptr;
 
-static unsigned long ikmem_water_mark = 0;
+static iulong ikmem_water_mark = 0;
 
-static unsigned long ikmem_range_high = 0;
-static unsigned long ikmem_range_low = 0;
+static iulong ikmem_range_high = 0;
+static iulong ikmem_range_low = 0;
 
 
-static int ikmem_append(unsigned long size, struct IMEMGFP *gfp)
+static int ikmem_append(iulong size, struct IMEMGFP *gfp)
 {
 	imemcache_t *cache, **p1, **p2;
 	static int sizelimit = 0;
 	char name[64];
 	int index, k;
 
-	sprintf(name, "kmem_%ld", size);
+	sprintf(name, "kmem_%ld", (long)size);
 	cache = imemcache_create(name, size, gfp);
 	
 	#ifdef IKMEM_MINWASTE
@@ -1350,13 +1353,13 @@ static int ikmem_append(unsigned long size, struct IMEMGFP *gfp)
 }
 
 
-static unsigned long ikmem_page_waste(unsigned long obj_size, 
-		unsigned long page_size)
+static iulong ikmem_page_waste(iulong obj_size, 
+		iulong page_size)
 {
 	imemcache_t cache;
-	unsigned long size, k;
-	cache.obj_size = (unsigned long)obj_size;
-	cache.page_size = (unsigned long)page_size;
+	iulong size, k;
+	cache.obj_size = (iulong)obj_size;
+	cache.page_size = (iulong)page_size;
 	cache.unit_size = IMROUNDUP(obj_size + sizeof(void*));
 	cache.flags = 0;
 	imemcache_calculate(&cache);
@@ -1367,10 +1370,10 @@ static unsigned long ikmem_page_waste(unsigned long obj_size,
 	return size;
 }
 
-static unsigned long ikmem_gfp_waste(unsigned long obj_size, imemgfp_t *gfp)
+static iulong ikmem_gfp_waste(iulong obj_size, imemgfp_t *gfp)
 {
 	imemcache_t *cache;
-	unsigned long waste;
+	iulong waste;
 	if (gfp == NULL) {
 		return ikmem_page_waste(obj_size, imem_gfp_default.page_size);
 	}
@@ -1379,12 +1382,12 @@ static unsigned long ikmem_gfp_waste(unsigned long obj_size, imemgfp_t *gfp)
 	return waste + ikmem_gfp_waste(cache->obj_size, cache->gfp);
 }
 
-static imemgfp_t *ikmem_choose_gfp(unsigned long obj_size, long *w)
+static imemgfp_t *ikmem_choose_gfp(iulong obj_size, ilong *w)
 {
-	unsigned long hiwater = IMROUNDUP(obj_size + sizeof(void*)) * 64;
-	unsigned long lowater = IMROUNDUP(obj_size + sizeof(void*)) * 8;
+	iulong hiwater = IMROUNDUP(obj_size + sizeof(void*)) * 64;
+	iulong lowater = IMROUNDUP(obj_size + sizeof(void*)) * 8;
 	imemcache_t *cache;
-	unsigned long min, waste;
+	iulong min, waste;
 	int index, i = -1;
 
 	min = imem_gfp_default.page_size;
@@ -1396,18 +1399,18 @@ static imemgfp_t *ikmem_choose_gfp(unsigned long obj_size, long *w)
 		if (waste < min) min = waste, i = index;
 	}
 	if (i < 0 || i >= ikmem_count) {
-		if (w) w[0] = (long)ikmem_gfp_waste(obj_size, NULL);
+		if (w) w[0] = (ilong)ikmem_gfp_waste(obj_size, NULL);
 		return NULL;
 	}
-	if (w) w[0] = (long)min;
+	if (w) w[0] = (ilong)min;
 	return &ikmem_array[i]->page_supply;
 }
 
-static void ikmem_insert(unsigned long objsize, int approxy)
+static void ikmem_insert(iulong objsize, int approxy)
 {
 	imemgfp_t *gfp;
-	unsigned long optimize;
-	long index, waste;
+	iulong optimize;
+	ilong index, waste;
 
 	for (index = 0; index < ikmem_count; index++) {
 		optimize = ikmem_array[index]->obj_size;
@@ -1423,7 +1426,7 @@ static void ikmem_insert(unsigned long objsize, int approxy)
 	ikmem_append(objsize, gfp);
 }
 
-static imemcache_t *ikmem_choose_size(unsigned long size)
+static imemcache_t *ikmem_choose_size(iulong size)
 {
 	int index;
 	if (size >= imem_page_size) return NULL;
@@ -1435,24 +1438,24 @@ static imemcache_t *ikmem_choose_size(unsigned long size)
 	return NULL;
 }
 
-static void ikmem_setup_caches(unsigned long *sizelist)
+static void ikmem_setup_caches(iulong *sizelist)
 {
-	unsigned long fib1 = 8, fib2 = 16, f;
-	unsigned long *sizevec, *p;
-	unsigned long k = 0;
-	int limit, shift, count, i, j;
+	iulong fib1 = 8, fib2 = 16, f;
+	iulong *sizevec, *p;
+	iulong k = 0;
+	ilong limit, shift, count, i, j;
 	imemcache_t *cache;
 
 	limit = 32;
-	sizevec = (unsigned long*)internal_malloc(0, sizeof(long) * limit);
+	sizevec = (iulong*)internal_malloc(0, sizeof(ilong) * limit);
 	assert(sizevec);
 
 	#define ikmem_sizevec_append(size) do { \
 		if (count >= limit) {	\
 			limit = limit * 2;	\
-			p = (unsigned long*)internal_malloc(0, sizeof(long) * limit);	\
+			p = (iulong*)internal_malloc(0, sizeof(ilong) * limit);	\
 			assert(p);	\
-			memcpy(p, sizevec, sizeof(long) * count);	\
+			memcpy(p, sizevec, sizeof(ilong) * count);	\
 			free(sizevec);	\
 			sizevec = p;	\
 		}	\
@@ -1498,9 +1501,9 @@ static void ikmem_setup_caches(unsigned long *sizelist)
 
 	for (i = 0; i < ikmem_count; i++) {
 		cache = ikmem_array[i];
-		cache->extra = (long*)internal_malloc(0, sizeof(long) * 8);
+		cache->extra = (ilong*)internal_malloc(0, sizeof(ilong) * 8);
 		assert(cache->extra);
-		memset(cache->extra, 0, sizeof(long) * 8);
+		memset(cache->extra, 0, sizeof(ilong) * 8);
 	}
 
 	ikmem_size_lookup1[0] = NULL;
@@ -1508,10 +1511,10 @@ static void ikmem_setup_caches(unsigned long *sizelist)
 }
 
 
-void ikmem_init(unsigned long page_shift, int pg_malloc, unsigned long *sz)
+void ikmem_init(iulong page_shift, int pg_malloc, iulong *sz)
 {
-	unsigned long psize;
-	int limit;
+	iulong psize;
+	ilong limit;
 
 	assert(ikmem_inited == 0 && imslab_inited == 0);
 	assert(imem_gfp_inited == 0);
@@ -1546,7 +1549,7 @@ void ikmem_destroy(void)
 {
 	imemcache_t *cache;
 	iqueue_head *p, *next;
-	long index;
+	ilong index;
 
 	assert(ikmem_inited);
 
@@ -1593,14 +1596,14 @@ void ikmem_destroy(void)
 }
 
 #define IKMEM_LARGE_HEAD	\
-	IMROUNDUP(sizeof(iqueue_head) + sizeof(void*) + sizeof(long))
+	IMROUNDUP(sizeof(iqueue_head) + sizeof(void*) + sizeof(ilong))
 
-#define IKMEM_STAT(cache, id) (((long*)((cache)->extra))[id])
+#define IKMEM_STAT(cache, id) (((ilong*)((cache)->extra))[id])
 
-void* ikmem_malloc(unsigned long size)
+void* ikmem_malloc(iulong size)
 {
 	imemcache_t *cache = NULL;
-	unsigned long round;
+	iulong round;
 	iqueue_head *p;
 	char *lptr;
 
@@ -1630,7 +1633,7 @@ void* ikmem_malloc(unsigned long size)
 		p = (iqueue_head*)lptr;
 		lptr += IKMEM_LARGE_HEAD;
 		*(void**)(lptr - sizeof(void*)) = NULL;
-		*(long*)(lptr - sizeof(void*) - sizeof(long)) = size;
+		*(ilong*)(lptr - sizeof(void*) - sizeof(ilong)) = size;
 
 		imutex_lock(&ikmem_lock);
 		iqueue_add(p, &ikmem_large_ptr);
@@ -1652,10 +1655,10 @@ void* ikmem_malloc(unsigned long size)
 		ikmem_inuse += cache->obj_size;
 	}
 
-	if (ikmem_range_high < (unsigned long)lptr)
-		ikmem_range_high = (unsigned long)lptr;
-	if (ikmem_range_low > (unsigned long)lptr)
-		ikmem_range_low = (unsigned long)lptr;
+	if (ikmem_range_high < (iulong)lptr)
+		ikmem_range_high = (iulong)lptr;
+	if (ikmem_range_low > (iulong)lptr)
+		ikmem_range_low = (iulong)lptr;
 
 	return lptr;
 }
@@ -1683,23 +1686,23 @@ void ikmem_free(void *ptr)
 	}
 }
 
-unsigned long ikmem_ptr_size(void *ptr)
+iulong ikmem_ptr_size(void *ptr)
 {
-	unsigned long size, linear;
+	iulong size, linear;
 	imemcache_t *cache;
 	imemslab_t *slab;
 	char *lptr = (char*)ptr;
 	int invalidptr;
 
-	if ((unsigned long)lptr < ikmem_range_low ||
-		(unsigned long)lptr > ikmem_range_high) 
+	if ((iulong)lptr < ikmem_range_low ||
+		(iulong)lptr > ikmem_range_high) 
 		return 0;
 
 	if (*(void**)(lptr - sizeof(void*)) == NULL) {
-		size = *(unsigned long*)(lptr - sizeof(void*) - sizeof(long));
+		size = *(iulong*)(lptr - sizeof(void*) - sizeof(ilong));
 	}	else {
 
-		linear = (unsigned long)(*(void**)(lptr - sizeof(void*)));
+		linear = (iulong)(*(void**)(lptr - sizeof(void*)));
 		invalidptr = ((linear & IMCACHE_CHECK_MAGIC) != IMCACHE_CHECK_MAGIC);
 
 		if ( invalidptr ) return 0;
@@ -1718,9 +1721,9 @@ unsigned long ikmem_ptr_size(void *ptr)
 	return size;
 }
 
-void* ikmem_realloc(void *ptr, unsigned long size)
+void* ikmem_realloc(void *ptr, iulong size)
 {
-	unsigned long oldsize;
+	iulong oldsize;
 	void *newptr;
 
 	if (ptr == NULL) return ikmem_malloc(size);
@@ -1761,7 +1764,7 @@ static imemcache_t* ikmem_search(const char *name, int needlock)
 {
 	imemcache_t *cache, *result;
 	iqueue_head *head;
-	long index;
+	ilong index;
 
 	for (index = 0; index < ikmem_count; index++) {
 		cache = ikmem_array[index];
@@ -1781,7 +1784,7 @@ static imemcache_t* ikmem_search(const char *name, int needlock)
 }
 
 
-void ikmem_option(unsigned long watermark)
+void ikmem_option(iulong watermark)
 {
 	ikmem_water_mark = watermark;
 }
@@ -1793,7 +1796,7 @@ imemcache_t *ikmem_get(const char *name)
 }
 
 
-long ikmem_page_info(long *pg_inuse, long *pg_new, long *pg_del)
+ilong ikmem_page_info(ilong *pg_inuse, ilong *pg_new, ilong *pg_del)
 {
 	if (pg_inuse) pg_inuse[0] = imem_gfp_default.pages_inuse;
 	if (pg_new) pg_new[0] = imem_gfp_default.pages_new;
@@ -1801,10 +1804,10 @@ long ikmem_page_info(long *pg_inuse, long *pg_new, long *pg_del)
 	return imem_page_size;
 }
 
-long ikmem_cache_info(int id, int *inuse, int *cnew, int *cdel, int *cfree)
+ilong ikmem_cache_info(int id, int *inuse, int *cnew, int *cdel, int *cfree)
 {
 	imemcache_t *cache;
-	long nfree, i;
+	ilong nfree, i;
 	if (id < 0 || id >= ikmem_count) return -1;
 	cache = ikmem_array[id];
 	nfree = cache->free_objects;
@@ -1819,9 +1822,9 @@ long ikmem_cache_info(int id, int *inuse, int *cnew, int *cdel, int *cfree)
 	return cache->obj_size;
 }
 
-long ikmem_waste_info(long *kmem_inuse, long *total_mem)
+ilong ikmem_waste_info(ilong *kmem_inuse, ilong *total_mem)
 {
-	unsigned long totalmem;
+	iulong totalmem;
 	totalmem = imem_page_size * imem_gfp_default.pages_inuse;
 	if (kmem_inuse) kmem_inuse[0] = ikmem_inuse;
 	if (total_mem) total_mem[0] = totalmem;
@@ -1835,7 +1838,7 @@ long ikmem_waste_info(long *kmem_inuse, long *total_mem)
 typedef void* ikmem_cache_t;
 #endif
 
-imemcache_t *ikmem_create(const char *name, unsigned long size)
+imemcache_t *ikmem_create(const char *name, iulong size)
 {
 	imemcache_t *cache;
 	imemgfp_t *gfp;
@@ -1856,7 +1859,7 @@ imemcache_t *ikmem_create(const char *name, unsigned long size)
 		return NULL;
 	}
 	cache->flags |= IMCACHE_FLAG_ONQUEUE;
-	cache->user = (long)gfp;
+	cache->user = (ilong)gfp;
 	iqueue_add_tail(&ikmem_head, &cache->queue);
 	imutex_unlock(&ikmem_lock);
 
@@ -1893,7 +1896,7 @@ void ikmem_cache_free(imemcache_t *cache, void *ptr)
 /*====================================================================*/
 /* IVECTOR / IMEMNODE MANAGEMENT                                      */
 /*====================================================================*/
-static void* ikmem_allocator_malloc(struct IALLOCATOR *, unsigned long);
+static void* ikmem_allocator_malloc(struct IALLOCATOR *, iulong);
 static void ikmem_allocator_free(struct IALLOCATOR *, void *);
 
 struct IALLOCATOR ikmem_allocator = 
@@ -1904,7 +1907,7 @@ struct IALLOCATOR ikmem_allocator =
 };
 
 
-static void* ikmem_allocator_malloc(struct IALLOCATOR *a, unsigned long len)
+static void* ikmem_allocator_malloc(struct IALLOCATOR *a, iulong len)
 {
 	return ikmem_malloc(len);
 }
@@ -1932,7 +1935,7 @@ void iv_delete(ivector_t *vec)
 	ikmem_free(vec);
 }
 
-imemnode_t *imnode_create(long nodesize, int grow_limit)
+imemnode_t *imnode_create(ilong nodesize, int grow_limit)
 {
 	imemnode_t *mnode;
 	mnode = (imemnode_t*)ikmem_malloc(sizeof(imemnode_t));

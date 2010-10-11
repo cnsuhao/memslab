@@ -2,8 +2,6 @@
  *
  * imembase.h - basic interface of memory operation
  *
- * Copyright (c) 2007 skywind <skywind3000@hotmail.com>
- *
  * - application layer slab allocator implementation
  * - unit interval time cost: almost speed up 500% - 1200% vs malloc
  * - optional page supplier: with the "GFP-Tree" algorithm
@@ -29,6 +27,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+/*====================================================================*/
+/* IULONG/ILONG (ensure sizeof(iulong) == sizeof(void*))              */
+/*====================================================================*/
+#ifndef __IULONG_DEFINED
+#define __IULONG_DEFINED
+#if defined(WIN64) || defined(_WIN64)		/* LLP64 mode */
+#ifdef _MSC_VER
+typedef unsigned __int64 iulong;
+typedef __int64 ilong;
+#else										/* LP64 or 32/16 mode */
+typedef unsigned long long iulong;
+typedef long long ilong;
+#endif
+#else
+typedef unsigned long iulong;
+typedef long ilong;
+#endif
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -39,13 +57,13 @@ extern "C" {
 /*====================================================================*/
 struct IALLOCATOR
 {
-    void *(*alloc)(struct IALLOCATOR *, unsigned long);
+    void *(*alloc)(struct IALLOCATOR *, iulong);
     void (*free)(struct IALLOCATOR *, void *);
     void *udata;
-    long reserved;
+    ilong reserved;
 };
 
-void* internal_malloc(struct IALLOCATOR *allocator, unsigned long size);
+void* internal_malloc(struct IALLOCATOR *allocator, iulong size);
 void internal_free(struct IALLOCATOR *allocator, void *ptr);
 
 
@@ -54,19 +72,19 @@ void internal_free(struct IALLOCATOR *allocator, void *ptr);
 /*====================================================================*/
 struct IVECTOR
 {
-	unsigned char*data;       
-	unsigned long size;      
-	unsigned long block;       
+	unsigned char *data;       
+	iulong size;      
+	iulong block;       
 	struct IALLOCATOR *allocator;
 };
 
 void iv_init(struct IVECTOR *v, struct IALLOCATOR *allocator);
 void iv_destroy(struct IVECTOR *v);
-int iv_resize(struct IVECTOR *v, unsigned long newsize);
+int iv_resize(struct IVECTOR *v, iulong newsize);
 
 
 #define IMROUNDSHIFT	3
-#define IMROUNDSIZE		(1 << IMROUNDSHIFT)
+#define IMROUNDSIZE		(((iulong)1) << IMROUNDSHIFT)
 #define IMROUNDUP(s)	(((s) + IMROUNDSIZE - 1) & ~(IMROUNDSIZE - 1))
 
 
@@ -82,36 +100,37 @@ struct IMEMNODE
 	struct IVECTOR vnode;           /* node information data   */
 	struct IVECTOR vdata;           /* node data buffer vector */
 	struct IVECTOR vmode;           /* mode of allocation      */
-	long *mprev;                    /* prev node array         */
-	long *mnext;                    /* next node array         */
-	long *mnode;                    /* node info array         */
-	void**mdata;                    /* node data array         */
-	long *mmode;                    /* node mode array         */
-	void *extra;                    /* extra user data         */
-	long node_free;                 /* number of free nodes    */
-	long node_max;                  /* number of all nodes     */
-	long grow_limit;                /* limit of growing        */
+	ilong *mprev;                   /* prev node array         */
+	ilong *mnext;                   /* next node array         */
+	ilong *mnode;                   /* node info array         */
+	void **mdata;                   /* node data array         */
+	ilong *mmode;                   /* node mode array         */
+	ilong *extra;                   /* extra user data         */
+	ilong node_free;                /* number of free nodes    */
+	ilong node_max;                 /* number of all nodes     */
+	ilong grow_limit;               /* limit of growing        */
 
-	long node_size;                 /* node data fixed size    */
-	long node_shift;                /* node data size shift    */
+	ilong node_size;                /* node data fixed size    */
+	ilong node_shift;               /* node data size shift    */
 
 	struct IVECTOR vmem;            /* mem-pages in the pool   */
 	char **mmem;                    /* mem-pages array         */
-	long mem_max;                   /* max num of memory pages */
-	long mem_count;                 /* number of mem-pages     */
+	ilong mem_max;                  /* max num of memory pages */
+	ilong mem_count;                /* number of mem-pages     */
 
-	long list_open;                 /* the entry of open-list  */
-	long list_close;                /* the entry of close-list */
-	long total_mem;                 /* total memory size       */
+	ilong list_open;                /* the entry of open-list  */
+	ilong list_close;               /* the entry of close-list */
+	ilong total_mem;                /* total memory size       */
 };
 
-void imnode_init(struct IMEMNODE *mn, long nodesize, struct IALLOCATOR *ac);
+void imnode_init(struct IMEMNODE *mn, ilong nodesize, struct IALLOCATOR *ac);
 void imnode_destroy(struct IMEMNODE *mnode);
-long imnode_new(struct IMEMNODE *mnode);
-void imnode_del(struct IMEMNODE *mnode, long index);
-long imnode_head(struct IMEMNODE *mnode);
-long imnode_next(struct IMEMNODE *mnode, long index);
-void*imnode_data(struct IMEMNODE *mnode, long index);
+ilong imnode_new(struct IMEMNODE *mnode);
+void imnode_del(struct IMEMNODE *mnode, ilong index);
+ilong imnode_head(struct IMEMNODE *mnode);
+ilong imnode_next(struct IMEMNODE *mnode, ilong index);
+ilong imnode_prev(struct IMEMNODE *mnode, ilong index);
+void*imnode_data(struct IMEMNODE *mnode, ilong index);
 
 #define IMNODE_NODE(mnodeptr, i) ((mnodeptr)->mnode[i])
 #define IMNODE_PREV(mnodeptr, i) ((mnodeptr)->mprev[i])
@@ -143,7 +162,7 @@ typedef struct IQUEUEHEAD iqueue_head;
 #define IQUEUE_INIT(ptr) ( \
 	(ptr)->next = (ptr), (ptr)->prev = (ptr))
 
-#define IOFFSETOF(TYPE, MEMBER) ((unsigned long) &((TYPE *)0)->MEMBER)
+#define IOFFSETOF(TYPE, MEMBER) ((iulong) &((TYPE *)0)->MEMBER)
 
 #define ICONTAINEROF(ptr, type, member) ( \
 		(type*)( ((char*)((type*)ptr)) - IOFFSETOF(type, member)) )
@@ -222,10 +241,10 @@ typedef struct IQUEUEHEAD iqueue_head;
 struct IMEMSLAB
 {
 	struct IQUEUEHEAD queue;
-	unsigned long coloroff;
+	iulong coloroff;
 	void*membase;
-	long memsize;
-	long inuse;
+	ilong memsize;
+	ilong inuse;
 	void*bufctl;
 	void*extra;
 };
@@ -306,14 +325,14 @@ void imutex_unlock(imutex_t *mutex);
 /*====================================================================*/
 struct IMEMGFP
 {
-	unsigned long page_size;
-	long refcnt;
+	iulong page_size;
+	ilong refcnt;
 	void*(*alloc_page)(struct IMEMGFP *gfp);
 	void (*free_page)(struct IMEMGFP *gfp, void *ptr);
 	void *extra;
-	unsigned long pages_inuse;
-	unsigned long pages_new;
-	unsigned long pages_del;
+	iulong pages_inuse;
+	iulong pages_new;
+	iulong pages_del;
 };
 
 #define IDEFAULT_PAGE_SHIFT 16
@@ -361,16 +380,16 @@ typedef struct IMEMLRU imemlru_t;
 /*====================================================================*/
 struct IMEMCACHE
 {
-	unsigned long obj_size;
-	unsigned long unit_size;
-	unsigned long page_size;
-	unsigned long count_partial;
-	unsigned long count_full;
-	unsigned long count_free;
-	unsigned long free_objects;
-	unsigned long free_limit;
-	unsigned long color_next;
-	unsigned long color_limit;
+	iulong obj_size;
+	iulong unit_size;
+	iulong page_size;
+	iulong count_partial;
+	iulong count_full;
+	iulong count_free;
+	iulong free_objects;
+	iulong free_limit;
+	iulong color_next;
+	iulong color_limit;
 
 	iqueue_head queue;
 	imutex_t list_lock;
@@ -383,18 +402,18 @@ struct IMEMCACHE
 	imemgfp_t *gfp;		
 	imemgfp_t page_supply;
 
-	unsigned long batchcount;
-	unsigned long limit;
-	unsigned long num;	
-	long flags;
-	long user;
+	iulong batchcount;
+	iulong limit;
+	iulong num;	
+	ilong flags;
+	ilong user;
 	void*extra;
 
 	char name[IMCACHE_NAMESIZE + 1];
-	unsigned long pages_hiwater;
-	unsigned long pages_inuse;
-	unsigned long pages_new;
-	unsigned long pages_del;
+	iulong pages_hiwater;
+	iulong pages_inuse;
+	iulong pages_new;
+	iulong pages_del;
 };
 
 typedef struct IMEMCACHE imemcache_t;
@@ -403,26 +422,26 @@ typedef struct IMEMCACHE imemcache_t;
 /*====================================================================*/
 /* IKMEM INTERFACE                                                    */
 /*====================================================================*/
-void ikmem_init(unsigned long page_shift, int pg_malloc, unsigned long *sz);
+void ikmem_init(iulong page_shift, int pg_malloc, iulong *sz);
 void ikmem_destroy(void);
 
-void* ikmem_malloc(unsigned long size);
-void* ikmem_realloc(void *ptr, unsigned long size);
+void* ikmem_malloc(iulong size);
+void* ikmem_realloc(void *ptr, iulong size);
 void ikmem_free(void *ptr);
 void ikmem_shrink(void);
 
-imemcache_t *ikmem_create(const char *name, unsigned long size);
+imemcache_t *ikmem_create(const char *name, iulong size);
 void ikmem_delete(imemcache_t *cache);
 void *ikmem_cache_alloc(imemcache_t *cache);
 void ikmem_cache_free(imemcache_t *cache, void *ptr);
 
-unsigned long ikmem_ptr_size(void *ptr);
-void ikmem_option(unsigned long watermark);
+iulong ikmem_ptr_size(void *ptr);
+void ikmem_option(iulong watermark);
 imemcache_t *ikmem_get(const char *name);
 
-long ikmem_page_info(long *pg_inuse, long *pg_new, long *pg_del);
-long ikmem_cache_info(int id, int *inuse, int *cnew, int *cdel, int *cfree);
-long ikmem_waste_info(long *kmem_inuse, long *total_mem);
+ilong ikmem_page_info(ilong *pg_inuse, ilong *pg_new, ilong *pg_del);
+ilong ikmem_cache_info(int id, int *inuse, int *cnew, int *cdel, int *cfree);
+ilong ikmem_waste_info(ilong *kmem_inuse, ilong *total_mem);
 
 
 /*====================================================================*/
@@ -436,7 +455,7 @@ typedef struct IMEMNODE imemnode_t;
 ivector_t *iv_create(void);
 void iv_delete(ivector_t *vec);
 
-imemnode_t *imnode_create(long nodesize, int grow_limit);
+imemnode_t *imnode_create(ilong nodesize, int grow_limit);
 void imnode_delete(imemnode_t *);
 
 
