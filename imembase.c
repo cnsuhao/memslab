@@ -134,6 +134,25 @@ int iv_resize(struct IVECTOR *v, iulong newsize)
 	return 0;
 }
 
+int iv_push(struct IVECTOR *v, const void *data, iulong size)
+{
+	iulong current = v->size;
+	if (iv_resize(v, current + size) != 0)
+		return -1;
+	memcpy(v->data + current, data, size);
+	return 0;
+}
+
+iulong iv_pop(struct IVECTOR *v, void *data, iulong size)
+{
+	iulong current = v->size;
+	if (size >= current) size = current;
+	if (data != NULL) 
+		memcpy(data, v->data + current - size, size);
+	iv_resize(v, current - size);
+	return size;
+}
+
 
 /*====================================================================*/
 /* IMEMNODE                                                           */
@@ -153,7 +172,7 @@ void imnode_init(struct IMEMNODE *mn, ilong nodesize, struct IALLOCATOR *ac)
 	iv_init(&mnode->vmem, ac);
 	iv_init(&mnode->vmode, ac);
 
-	for (shift = 1; (1ul << shift) < (iulong)nodesize; ) shift++;
+	for (shift = 1; (((iulong)1) << shift) < (iulong)nodesize; ) shift++;
 
 	newsize = (nodesize < IMROUNDSIZE)? IMROUNDSIZE : nodesize;
 	newsize = IMROUNDUP(newsize);
@@ -585,7 +604,8 @@ static void imem_gfp_init(int page_shift, int use_malloc)
 		page_shift = IDEFAULT_PAGE_SHIFT;
 
 	imem_page_shift = (iulong)page_shift;
-	imem_page_size = (1ul << page_shift) + IMROUNDUP(sizeof(void*)) * 16;
+	imem_page_size = (((iulong)1) << page_shift) + 
+		IMROUNDUP(sizeof(void*)) * 16;
 
 	require_size = imem_page_size + IMROUNDUP(sizeof(void*));
 	imnode_init(&imem_page_cache, require_size, 0);
@@ -1464,7 +1484,7 @@ static void ikmem_setup_caches(iulong *sizelist)
 
 	shift = imem_page_shift;
 	for (count = 0; shift >= 3; shift--) {
-		ikmem_sizevec_append(1ul << shift);
+		ikmem_sizevec_append(((iulong)1) << shift);
 	}
 
 	for (; fib2 < (imem_gfp_default.page_size >> 2); ) {
@@ -1539,8 +1559,8 @@ void ikmem_init(iulong page_shift, int pg_malloc, iulong *sz)
 	iqueue_init(&ikmem_head);
 	iqueue_init(&ikmem_large_ptr);
 
-	ikmem_range_high = 0ul;
-	ikmem_range_low = ~0ul;
+	ikmem_range_high = (iulong)0;
+	ikmem_range_low = ~((iulong)0);
 
 	ikmem_inited = 1;
 }
@@ -1609,13 +1629,13 @@ void* ikmem_malloc(iulong size)
 
 	if (ikmem_inited == 0) ikmem_init(0, 0, NULL);
 
-	assert(size > 0 && size <= (1lu << 30));
-	round = (size + 3) & ~3ul;
+	assert(size > 0 && size <= (((iulong)1) << 30));
+	round = (size + 3) & ~((iulong)3);
 
 	if (round <= 1024) {
 		cache = ikmem_size_lookup1[round >> 2];
 	}	else {
-		round = (size + 1023) & ~1023ul;
+		round = (size + 1023) & ~((iulong)1023);
 		if (round < (256 << 10)) 
 			cache = ikmem_size_lookup2[round >> 10];
 	}

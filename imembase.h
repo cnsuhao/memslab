@@ -81,6 +81,8 @@ struct IVECTOR
 void iv_init(struct IVECTOR *v, struct IALLOCATOR *allocator);
 void iv_destroy(struct IVECTOR *v);
 int iv_resize(struct IVECTOR *v, iulong newsize);
+int iv_push(struct IVECTOR *v, const void *data, iulong size);
+iulong iv_pop(struct IVECTOR *v, void *data, iulong size);
 
 
 #define IMROUNDSHIFT	3
@@ -122,6 +124,7 @@ struct IMEMNODE
 	ilong list_close;               /* the entry of close-list */
 	ilong total_mem;                /* total memory size       */
 };
+
 
 void imnode_init(struct IMEMNODE *mn, ilong nodesize, struct IALLOCATOR *ac);
 void imnode_destroy(struct IMEMNODE *mnode);
