@@ -292,10 +292,10 @@ typedef struct IMEMSLAB imemslab_t;
 
 #ifndef IMUTEX_TYPE
 #define IMUTEX_TYPE			int
-#define IMUTEX_INIT(m)		
-#define IMUTEX_DESTROY(m)	
-#define IMUTEX_LOCK(m)		
-#define IMUTEX_UNLOCK(m)	
+#define IMUTEX_INIT(m)		{ (m) = (m); }
+#define IMUTEX_DESTROY(m)	{ (m) = (m); }
+#define IMUTEX_LOCK(m)		{ (m) = (m); }
+#define IMUTEX_UNLOCK(m)	{ (m) = (m); }
 #endif
 
 #endif

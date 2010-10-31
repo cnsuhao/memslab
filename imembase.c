@@ -1322,10 +1322,22 @@ static int ikmem_append(size_t size, struct IMEMGFP *gfp)
 	imemcache_t *cache, **p1, **p2;
 	static int sizelimit = 0;
 	char name[64];
+	char nums[32];
 	int index, k;
+	size_t num;
 
 	strncpy(name, "kmem_", 20);
-	ltoa((long)size, name + 5, 10); 
+
+	for (num = size, index = 0; ; ) {
+		nums[index++] = num % 10;
+		num /= 10;
+		if (num == 0) break;
+	}
+
+	for (k = 0; k < index; k++) 
+		name[5 + k] = nums[index - 1 - k];
+
+	name[5 + index] = 0;
 
 	cache = imemcache_create(name, size, gfp);
 	
@@ -1931,12 +1943,14 @@ struct IALLOCATOR ikmem_allocator =
 
 static void* ikmem_allocator_malloc(struct IALLOCATOR *a, size_t len)
 {
+	a = a;
 	return ikmem_malloc(len);
 }
 
 static void ikmem_allocator_free(struct IALLOCATOR *a, void *ptr)
 {
 	assert(ptr);
+	a = a;
 	ikmem_free(ptr);
 }
 
