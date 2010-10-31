@@ -47,6 +47,7 @@
 #error it can only be compiled under windows or unix
 #endif
 
+#include <stdio.h>
 #include <time.h>
 
 /* gettime */

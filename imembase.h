@@ -23,7 +23,7 @@
 #include "config.h"
 #endif
 
-#include <stdio.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -33,18 +33,8 @@
 /*====================================================================*/
 #ifndef __IULONG_DEFINED
 #define __IULONG_DEFINED
-#if defined(WIN64) || defined(_WIN64)		/* LLP64 mode */
-#ifdef _MSC_VER
-typedef unsigned __int64 iulong;
-typedef __int64 ilong;
-#else										/* LP64 or 32/16 mode */
-typedef unsigned long long iulong;
-typedef long long ilong;
-#endif
-#else
-typedef unsigned long iulong;
-typedef long ilong;
-#endif
+typedef ptrdiff_t ilong;
+typedef size_t iulong;
 #endif
 
 #ifdef __cplusplus
@@ -57,13 +47,13 @@ extern "C" {
 /*====================================================================*/
 struct IALLOCATOR
 {
-    void *(*alloc)(struct IALLOCATOR *, iulong);
+    void *(*alloc)(struct IALLOCATOR *, size_t);
     void (*free)(struct IALLOCATOR *, void *);
     void *udata;
     ilong reserved;
 };
 
-void* internal_malloc(struct IALLOCATOR *allocator, iulong size);
+void* internal_malloc(struct IALLOCATOR *allocator, size_t size);
 void internal_free(struct IALLOCATOR *allocator, void *ptr);
 
 
@@ -73,20 +63,20 @@ void internal_free(struct IALLOCATOR *allocator, void *ptr);
 struct IVECTOR
 {
 	unsigned char *data;       
-	iulong size;      
-	iulong block;       
+	size_t size;      
+	size_t block;       
 	struct IALLOCATOR *allocator;
 };
 
 void iv_init(struct IVECTOR *v, struct IALLOCATOR *allocator);
 void iv_destroy(struct IVECTOR *v);
-int iv_resize(struct IVECTOR *v, iulong newsize);
-int iv_push(struct IVECTOR *v, const void *data, iulong size);
-iulong iv_pop(struct IVECTOR *v, void *data, iulong size);
+int iv_resize(struct IVECTOR *v, size_t newsize);
+int iv_push(struct IVECTOR *v, const void *data, size_t size);
+size_t iv_pop(struct IVECTOR *v, void *data, size_t size);
 
 
 #define IMROUNDSHIFT	3
-#define IMROUNDSIZE		(((iulong)1) << IMROUNDSHIFT)
+#define IMROUNDSIZE		(((size_t)1) << IMROUNDSHIFT)
 #define IMROUNDUP(s)	(((s) + IMROUNDSIZE - 1) & ~(IMROUNDSIZE - 1))
 
 
@@ -165,7 +155,7 @@ typedef struct IQUEUEHEAD iqueue_head;
 #define IQUEUE_INIT(ptr) ( \
 	(ptr)->next = (ptr), (ptr)->prev = (ptr))
 
-#define IOFFSETOF(TYPE, MEMBER) ((iulong) &((TYPE *)0)->MEMBER)
+#define IOFFSETOF(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 
 #define ICONTAINEROF(ptr, type, member) ( \
 		(type*)( ((char*)((type*)ptr)) - IOFFSETOF(type, member)) )
@@ -244,7 +234,7 @@ typedef struct IQUEUEHEAD iqueue_head;
 struct IMEMSLAB
 {
 	struct IQUEUEHEAD queue;
-	iulong coloroff;
+	size_t coloroff;
 	void*membase;
 	ilong memsize;
 	ilong inuse;
@@ -328,14 +318,14 @@ void imutex_unlock(imutex_t *mutex);
 /*====================================================================*/
 struct IMEMGFP
 {
-	iulong page_size;
+	size_t page_size;
 	ilong refcnt;
 	void*(*alloc_page)(struct IMEMGFP *gfp);
 	void (*free_page)(struct IMEMGFP *gfp, void *ptr);
 	void *extra;
-	iulong pages_inuse;
-	iulong pages_new;
-	iulong pages_del;
+	size_t pages_inuse;
+	size_t pages_new;
+	size_t pages_del;
 };
 
 #define IDEFAULT_PAGE_SHIFT 16
@@ -383,16 +373,16 @@ typedef struct IMEMLRU imemlru_t;
 /*====================================================================*/
 struct IMEMCACHE
 {
-	iulong obj_size;
-	iulong unit_size;
-	iulong page_size;
-	iulong count_partial;
-	iulong count_full;
-	iulong count_free;
-	iulong free_objects;
-	iulong free_limit;
-	iulong color_next;
-	iulong color_limit;
+	size_t obj_size;
+	size_t unit_size;
+	size_t page_size;
+	size_t count_partial;
+	size_t count_full;
+	size_t count_free;
+	size_t free_objects;
+	size_t free_limit;
+	size_t color_next;
+	size_t color_limit;
 
 	iqueue_head queue;
 	imutex_t list_lock;
@@ -405,18 +395,18 @@ struct IMEMCACHE
 	imemgfp_t *gfp;		
 	imemgfp_t page_supply;
 
-	iulong batchcount;
-	iulong limit;
-	iulong num;	
+	size_t batchcount;
+	size_t limit;
+	size_t num;	
 	ilong flags;
 	ilong user;
 	void*extra;
 
 	char name[IMCACHE_NAMESIZE + 1];
-	iulong pages_hiwater;
-	iulong pages_inuse;
-	iulong pages_new;
-	iulong pages_del;
+	size_t pages_hiwater;
+	size_t pages_inuse;
+	size_t pages_new;
+	size_t pages_del;
 };
 
 typedef struct IMEMCACHE imemcache_t;
@@ -425,21 +415,21 @@ typedef struct IMEMCACHE imemcache_t;
 /*====================================================================*/
 /* IKMEM INTERFACE                                                    */
 /*====================================================================*/
-void ikmem_init(iulong page_shift, int pg_malloc, iulong *sz);
+void ikmem_init(int page_shift, int pg_malloc, size_t *sz);
 void ikmem_destroy(void);
 
-void* ikmem_malloc(iulong size);
-void* ikmem_realloc(void *ptr, iulong size);
+void* ikmem_malloc(size_t size);
+void* ikmem_realloc(void *ptr, size_t size);
 void ikmem_free(void *ptr);
 void ikmem_shrink(void);
 
-imemcache_t *ikmem_create(const char *name, iulong size);
+imemcache_t *ikmem_create(const char *name, size_t size);
 void ikmem_delete(imemcache_t *cache);
 void *ikmem_cache_alloc(imemcache_t *cache);
 void ikmem_cache_free(imemcache_t *cache, void *ptr);
 
-iulong ikmem_ptr_size(void *ptr);
-void ikmem_option(iulong watermark);
+size_t ikmem_ptr_size(void *ptr);
+void ikmem_option(size_t watermark);
 imemcache_t *ikmem_get(const char *name);
 
 ilong ikmem_page_info(ilong *pg_inuse, ilong *pg_new, ilong *pg_del);
