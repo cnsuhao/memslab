@@ -1329,7 +1329,7 @@ static int ikmem_append(size_t size, struct IMEMGFP *gfp)
 	strncpy(name, "kmem_", 20);
 
 	for (num = size, index = 0; ; ) {
-		nums[index++] = num % 10;
+		nums[index++] = (char)((num % 10) + '0');
 		num /= 10;
 		if (num == 0) break;
 	}
