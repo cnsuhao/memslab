@@ -73,8 +73,8 @@ void iv_destroy(struct IVECTOR *v);
 int iv_resize(struct IVECTOR *v, size_t newsize);
 int iv_reserve(struct IVECTOR *v, size_t newsize);
 
-int iv_push(struct IVECTOR *v, const void *data, size_t size);
 size_t iv_pop(struct IVECTOR *v, void *data, size_t size);
+int iv_push(struct IVECTOR *v, const void *data, size_t size);
 int iv_insert(struct IVECTOR *v, size_t pos, const void *data, size_t size);
 int iv_erase(struct IVECTOR *v, size_t pos, size_t size);
 
