@@ -134,6 +134,27 @@ int iv_resize(struct IVECTOR *v, size_t newsize)
 	return 0;
 }
 
+int iv_reserve(struct IVECTOR *v, size_t newsize)
+{
+	unsigned char *ptr;
+	size_t block;
+
+	if (newsize <= v->size) return 0;
+	for (block = 1; block < newsize; ) block <<= 1;
+	if (block == v->block) return 0;
+
+	ptr = (unsigned char*)internal_malloc(v->allocator, block);
+	if (ptr == NULL) return -1;
+
+	memcpy(ptr, v->data, v->size);
+	internal_free(v->allocator, v->data);
+
+	v->data = ptr;
+	v->block = block;
+
+	return 0;
+}
+
 int iv_push(struct IVECTOR *v, const void *data, size_t size)
 {
 	size_t current = v->size;
@@ -151,6 +172,27 @@ size_t iv_pop(struct IVECTOR *v, void *data, size_t size)
 		memcpy(data, v->data + current - size, size);
 	iv_resize(v, current - size);
 	return size;
+}
+
+int iv_insert(struct IVECTOR *v, size_t pos, const void *data, size_t size)
+{
+	size_t current = v->size;
+	if (iv_resize(v, current + size) != 0)
+		return -1;
+	memmove(v->data + pos + size, v->data + pos, size);
+	memcpy(v->data + pos, data, size);
+	return 0;
+}
+
+int iv_erase(struct IVECTOR *v, size_t pos, size_t size)
+{
+	size_t current = v->size;
+	if (pos >= current) return 0;
+	if (pos + size >= current) size = current - pos;
+	memmove(v->data + pos, v->data + pos + size, current - pos - size);
+	if (iv_resize(v, current - size) != 0) 
+		return -1;
+	return 0;
 }
 
 

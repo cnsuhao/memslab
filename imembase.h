@@ -71,9 +71,17 @@ struct IVECTOR
 void iv_init(struct IVECTOR *v, struct IALLOCATOR *allocator);
 void iv_destroy(struct IVECTOR *v);
 int iv_resize(struct IVECTOR *v, size_t newsize);
+int iv_reserve(struct IVECTOR *v, size_t newsize);
+
 int iv_push(struct IVECTOR *v, const void *data, size_t size);
 size_t iv_pop(struct IVECTOR *v, void *data, size_t size);
+int iv_insert(struct IVECTOR *v, size_t pos, const void *data, size_t size);
+int iv_erase(struct IVECTOR *v, size_t pos, size_t size);
 
+#define iv_size(v) ((v)->size)
+#define iv_data(v) ((v)->data)
+
+#define iv_index(v, type, index) (((type*)iv_data(v))[index])
 
 #define IMROUNDSHIFT	3
 #define IMROUNDSIZE		(((size_t)1) << IMROUNDSHIFT)
