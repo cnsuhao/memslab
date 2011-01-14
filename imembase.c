@@ -100,12 +100,21 @@ int iv_resize(struct IVECTOR *v, size_t newsize)
 	size_t nblock;
 
 	if (v == NULL) return -1;
-	if (newsize > v->size && newsize <= v->block) { 
+	if (newsize >= v->size && newsize <= v->block) { 
 		v->size = newsize; 
 		return 0; 
 	}
 
-	for (nblock = 1; nblock < newsize; ) nblock <<= 1;
+	if (newsize == 0) {
+		if (v->block > 0) {
+			internal_free(v->allocator, v->data);
+			v->block = 0;
+			v->data = NULL;
+		}
+		return 0;
+	}
+
+	for (nblock = sizeof(char*); nblock < newsize; ) nblock <<= 1;
 	block = nblock;
 
 	if (block == v->block) { 
@@ -134,33 +143,13 @@ int iv_resize(struct IVECTOR *v, size_t newsize)
 	return 0;
 }
 
-int iv_reserve(struct IVECTOR *v, size_t newsize)
-{
-	unsigned char *ptr;
-	size_t block;
-
-	if (newsize <= v->size) return 0;
-	for (block = 1; block < newsize; ) block <<= 1;
-	if (block == v->block) return 0;
-
-	ptr = (unsigned char*)internal_malloc(v->allocator, block);
-	if (ptr == NULL) return -1;
-
-	memcpy(ptr, v->data, v->size);
-	internal_free(v->allocator, v->data);
-
-	v->data = ptr;
-	v->block = block;
-
-	return 0;
-}
-
 int iv_push(struct IVECTOR *v, const void *data, size_t size)
 {
 	size_t current = v->size;
 	if (iv_resize(v, current + size) != 0)
 		return -1;
-	memcpy(v->data + current, data, size);
+	if (data != NULL) 
+		memcpy(v->data + current, data, size);
 	return 0;
 }
 
@@ -180,7 +169,8 @@ int iv_insert(struct IVECTOR *v, size_t pos, const void *data, size_t size)
 	if (iv_resize(v, current + size) != 0)
 		return -1;
 	memmove(v->data + pos + size, v->data + pos, size);
-	memcpy(v->data + pos, data, size);
+	if (data != NULL) 
+		memcpy(v->data + pos, data, size);
 	return 0;
 }
 
@@ -189,6 +179,7 @@ int iv_erase(struct IVECTOR *v, size_t pos, size_t size)
 	size_t current = v->size;
 	if (pos >= current) return 0;
 	if (pos + size >= current) size = current - pos;
+	if (size == 0) return 0;
 	memmove(v->data + pos, v->data + pos + size, current - pos - size);
 	if (iv_resize(v, current - size) != 0) 
 		return -1;
