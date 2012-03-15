@@ -464,7 +464,7 @@ const ikmemhook_t *ikmem_hook_get(int id);
 
 
 /*====================================================================*/
-/* IVECTOR / IMEMNODE / HOOK MANAGEMENT                               */
+/* IVECTOR / IMEMNODE MANAGEMENT                                      */
 /*====================================================================*/
 extern struct IALLOCATOR ikmem_allocator;
 
